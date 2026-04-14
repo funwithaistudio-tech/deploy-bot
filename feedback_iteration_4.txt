@@ -1,0 +1,122 @@
+Thank you for sharing this code. Below is a **detailed code review** covering the five key areas you requested:
+
+---
+
+## ✅ 1. **Code Correctness and Potential Bugs**
+
+### 🔍 Issues Identified:
+
+#### **A. Incomplete GitHub API Usage**
+- The `GhApi` client is initialized without an access token, which will likely cause **unauthenticated API calls** and hit rate limits or fail to access private repositories.
+  - **Fix**: Pass the GitHub token via `token=` parameter in `GhApi(...)`.
+  - Example:
+    ```python
+    GhApi(owner=owner, repo=repo, token=os.environ.get("GITHUB_TOKEN"))
+    ```
+
+#### **B. Incorrect Branch Logic for Preview Deployments**
+- The logic:
+  ```python
+  is_preview = args.branch != "main" and not args.branch.startswith("preview/")
+  ```
+  is **flawed**. It assumes that any branch that is not `main` and not starting with `preview/` is a preview deployment. This is ambiguous and may not reflect actual intent.
+  - **Fix**: Clarify and simplify the logic. For example:
+    ```python
+    is_preview = args.branch != "main"
+    ```
+
+#### **C. No Handling of Workflow Run Status**
+- The code assumes that if a workflow exists, it was successful. It does **not check** the `conclusion` field.
+  - **Fix**: Add a check:
+    ```python
+    if workflow_status.get("conclusion") != "success":
+        print("⚠️ Workflow did not succeed. Aborting deployment.")
+        return
+    ```
+
+#### **D. No Error Handling for Missing Vercel Token**
+- The code warns about missing token but still proceeds with a "demo" deployment. This may be misleading.
+  - **Suggestion**: If deployment is critical, exit early if no token is provided.
+
+---
+
+## 🧼 2. **Code Style and Best Practices**
+
+### ✅ Good Practices:
+- Clear docstrings and type hints.
+- Modular functions with clear responsibilities.
+- Use of `argparse` for CLI argument parsing.
+
+### ❌ Areas for Improvement:
+
+#### **A. Use of `print()` for Logging**
+- Mixing `print()` with logic makes testing and debugging harder.
+  - **Suggestion**: Use the `logging` module instead:
+    ```python
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    logging.info("Deployment started...")
+    ```
+
+#### **B. Hardcoded Logic for `is_preview`**
+- The logic for determining preview vs production is hardcoded and not configurable.
+  - **Suggestion**: Allow configuration via CLI flags or environment variables.
+
+#### **C. Mock Deployment in `deploy_to_vercel`**
+- The function currently returns a mock URL. This is fine for a demo, but not production-ready.
+  - **Suggestion**: Add a real Vercel API call or at least a flag to toggle between real and mock deployments.
+
+---
+
+## ⚙️ 3. **Performance Optimizations**
+
+### ✅ Current Performance:
+- The script is lightweight and runs once, so performance is not a major concern.
+
+### ⚠️ Suggestions:
+- If this were to be extended to a long-running service (e.g., polling GitHub), consider:
+  - Caching API responses.
+  - Using `asyncio` for non-blocking I/O.
+  - Rate-limiting awareness for GitHub API.
+
+---
+
+## 🔐 4. **Security Considerations**
+
+### ⚠️ Issues:
+
+#### **A. Token Exposure**
+- The script accepts a Vercel token via CLI argument (`--vercel-token`), which is **insecure**.
+  - **Fix**: Only accept tokens via environment variables.
+    ```python
+    token = os.environ.get("VERCEL_TOKEN")
+    ```
+
+#### **B. No Input Sanitization**
+- The `--repo` argument is split by `/`, but there's no validation for malicious input.
+  - **Fix**: Add regex validation:
+    ```python
+    import re
+    if not re.match(r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$", args.repo):
+        print("Invalid repo format")
+        sys.exit(1)
+    ```
+
+#### **C. No HTTPS Enforcement**
+- The mock deployment URLs are HTTP. In real deployment, ensure HTTPS is enforced.
+
+---
+
+## 📖 5. **Readability and Maintainability**
+
+### ✅ Strengths:
+- Clear function names and separation of concerns.
+- Good use of type hints and docstrings.
+
+### ❌ Areas for Improvement:
+
+#### **A. Confusing Logic in `is_preview`**
+- The logic for determining preview vs production is not intuitive.
+  - **Fix**: Simplify and document.
+
+#### **

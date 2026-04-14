@@ -1,0 +1,105 @@
+# Code Review: Vercel Deployment Bot
+
+## 1. Code Correctness and Potential Bugs
+
+### Critical Issues:
+- **Missing authentication in GitHub API call**: The `GhApi` is initialized without a token, which will likely fail for private repositories or exceed rate limits
+- **Incorrect branch logic**: The condition `args.branch.startswith("preview/")` is flawed - branches don't typically have "preview/" prefixes
+- **Inconsistent error handling**: The function returns `None` on error but the main function doesn't check for this properly
+
+### Medium Issues:
+- **Hardcoded demo mode**: The deployment function always returns mock URLs instead of actual Vercel deployments
+- **No validation of workflow success**: The code assumes any workflow run means successful deployment, but doesn't check the actual conclusion status
+
+## 2. Code Style and Best Practices
+
+### Good Practices:
+- Clear docstrings and type hints
+- Proper argument parsing with help text
+- Modular function design
+
+### Areas for Improvement:
+- **Inconsistent naming**: `get_github_workflow_status` vs `deploy_to_vercel` - one is verbose, one is concise
+- **Magic strings**: "main" branch is hardcoded in multiple places
+- **Missing constants**: Status strings should be constants
+- **Function responsibilities**: `deploy_to_vercel` does nothing but return a mock URL
+
+## 3. Performance Optimizations
+
+- **Unnecessary API calls**: The GitHub API is called even in demo mode where it's not needed
+- **No caching**: Repeated calls to check workflow status could benefit from caching
+- **No async support**: For a bot that might monitor multiple repositories, async would be more efficient
+
+## 4. Security Considerations
+
+### Critical:
+- **Token exposure**: No validation that the Vercel token has appropriate permissions
+- **No input sanitization**: Repository owner/name parsing is vulnerable to injection
+
+### Medium:
+- **Token fallback logic**: Environment variable fallback should be more explicit about security implications
+- **No audit logging**: Deployments should be logged for security monitoring
+
+## 5. Readability and Maintainability
+
+### Strengths:
+- Clear separation of concerns
+- Good error handling with try/except blocks
+- Descriptive variable names
+
+### Areas for Improvement:
+- **Complex conditional logic**: The deployment type logic is confusing
+- **Missing configuration validation**: No checks for required environment or proper setup
+- **Lack of logging**: Using print statements instead of proper logging
+- **No unit tests**: Critical functionality is not tested
+
+## Specific Recommendations
+
+### Immediate Fixes:
+1. **Add GitHub token support**:
+```python
+# Add token parameter to function
+api = GhApi(owner=owner, repo=repo, token=os.environ.get('GITHUB_TOKEN'))
+```
+
+2. **Fix branch logic**:
+```python
+# Current (incorrect):
+is_preview = args.branch != "main" and not args.branch.startswith("preview/")
+
+# Should be:
+is_preview = args.branch != "main"
+```
+
+3. **Implement actual deployment**:
+Replace mock deployment with real Vercel API calls or CLI execution
+
+4. **Add proper error handling**:
+```python
+if workflow_status and workflow_status.get('conclusion') != 'success':
+    print("✗ Workflow failed or not completed")
+    return
+```
+
+### Enhancements:
+1. **Add logging module** instead of print statements
+2. **Add configuration validation** at startup
+3. **Add unit tests** for core functions
+4. **Add type validation** for inputs
+5. **Implement proper error codes** instead of just printing errors
+
+### Code Quality Improvements:
+1. **Extract constants**:
+```python
+DEFAULT_BRANCH = "main"
+VERCEL_PREVIEW_PREFIX = "preview"
+```
+
+2. **Improve function signatures**:
+```python
+def deploy_to_vercel(project_name: str, token: Optional[str], is_preview: bool = False) -> Optional[str]:
+```
+
+3. **Add comprehensive error handling** with specific exception types
+
+The code shows good structure but needs significant implementation work to be production-ready, particularly around the actual deployment functionality and proper API authentication.

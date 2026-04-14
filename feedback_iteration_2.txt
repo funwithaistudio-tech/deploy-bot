@@ -1,0 +1,76 @@
+# Code Review: Deploy Bot
+
+## 1. Code Correctness and Potential Bugs
+
+### Critical Issues
+
+1. **Missing Vercel token handling**: The code has a warning when no token is provided, but it doesn't actually use the token for deployment. The `deploy_to_vercel` function is a stub that just prints a message and returns a mock URL.
+
+2. **Incorrect branch logic**: The logic for determining preview vs production deployment is flawed:
+   ```python
+   is_preview = args.branch != "main" and not args.branch.startswith("preview/")
+   ```
+   This logic is incorrect - it deploys to preview unless branch is "main" or starts with "preview/". This seems backwards.
+
+3. **No actual deployment**: The deployment function is not implemented, making this more of a demo than a functional deployment bot.
+
+### Medium Issues
+
+4. **Workflow status checking**: The code only checks the most recent workflow run but doesn't verify it's actually for the specific branch being monitored, potentially leading to incorrect deployment triggers.
+
+5. **Error handling**: Generic exception handling with `except Exception as e` can mask important debugging information.
+
+## 2. Code Style and Best Practices
+
+### Issues Found
+
+1. **Inconsistent argument naming**: `--vercel-token` uses a hyphen in the argument name, which should be `vercel_token` in code (but Python argparse handles this conversion).
+
+2. **API initialization**: The GitHub API client is created without authentication, which will fail for private repositories.
+
+3. **Hardcoded assumptions**: The code assumes the first workflow run is the relevant one, which may not be correct.
+
+## 3. Performance Optimizations
+
+The current implementation is a simple script, so there are limited performance concerns. However:
+
+1. **API rate limiting**: No handling for GitHub API rate limits or authentication.
+2. **No caching**: Repeated calls to the same repository will make new API calls each time.
+
+## 4. Security Considerations
+
+1. **Missing authentication**: The code doesn't show how Vercel token would be used for authentication.
+2. **No input validation**: Repository owner and name are not validated beyond checking for the presence of "/".
+
+## 5. Readability and Maintainability
+
+### Issues
+
+1. **Magic strings**: The branch name "main" is hardcoded in multiple places.
+2. **Configuration assumptions**: The code assumes certain conventions (like branch naming) without allowing configuration.
+3. **Missing documentation**: No docstrings for the main functions.
+4. **Error messages**: Error reporting is basic and doesn't help with debugging.
+
+## Specific Line-by-Line Feedback
+
+| Line Number | Issue | Recommendation |
+|--------------|-------|----------------|
+| 23 | Generic exception handling | Use more specific exception handling for better error messages |
+| 35 | Hardcoded demo token | Implement actual Vercel deployment logic |
+| 47 | Branch logic | Fix the logic to properly determine preview vs production deployment |
+| 60 | Missing authentication | Add GitHub token support for the GhApi initialization |
+
+## Overall Assessment
+
+This code appears to be a prototype or demo that shows the structure of a deployment bot but lacks the actual implementation. The core functionality is missing, particularly the Vercel deployment logic and proper GitHub API authentication.
+
+## Recommendations
+
+1. **Implement actual deployment**: Replace the mock deployment with real Vercel API calls
+2. **Add authentication**: Support GitHub and Vercel tokens for API access
+3. **Fix branch logic**: Correct the deployment type determination logic
+4. **Improve error handling**: Add more specific error handling with better error messages
+5. **Add input validation**: Validate repository names and handle edge cases
+6. **Add configuration options**: Make deployment paths and conventions configurable
+
+The code needs significant work to become a production-ready deployment bot, but the structure is reasonable for a simple deployment monitoring tool.

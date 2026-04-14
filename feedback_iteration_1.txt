@@ -1,0 +1,118 @@
+Thank you for sharing this Python script for review. Below is a **detailed code review** covering:
+
+1. **Code Correctness and Potential Bugs**
+2. **Code Style and Best Practices**
+3. **Performance Optimizations**
+4. **Security Considerations**
+5. **Readability and Maintainability**
+
+---
+
+## ✅ 1. **Code Correctness and Potential Bugs**
+
+### 🔍 Issues Identified:
+
+#### a. **Incomplete Vercel Deployment Logic**
+- The `deploy_to_vercel` function is currently a **stub** and does not perform actual deployment.
+- It returns a **mock URL** instead of calling the Vercel API or CLI.
+- This is misleading and will not work in production.
+
+#### b. **Incorrect Branch Preview Logic**
+```python
+is_preview = args.branch != "main" and not args.branch.startswith("preview/")
+```
+- This logic is **flawed**:
+  - It assumes that any branch not named `main` and not starting with `preview/` is a preview.
+  - But it should be `args.branch.startswith("preview/")` to detect preview branches, not `not args.branch.startswith("preview/")`.
+
+#### c. **Missing Error Handling for Missing Token**
+- If `token` is not provided, it defaults to `"demo_token"` in `deploy_to_vercel`, which is not a real token and will cause issues in a real deployment.
+
+#### d. **No Real-time Monitoring**
+- The script checks for the latest workflow run **once** and exits.
+- It does **not monitor** for new pushes or workflow runs, which is likely the intended behavior of a "deployment bot".
+
+---
+
+## ✅ 2. **Code Style and Best Practices**
+
+### ✅ Good:
+- Clear docstrings and type hints.
+- Modular structure with separate functions.
+- Use of `argparse` for CLI argument parsing.
+
+### ❌ Improvements Needed:
+
+#### a. **Avoid Hardcoded Mocks**
+- The `deploy_to_vercel` function returns a fake URL. This should be replaced with actual deployment logic.
+
+#### b. **Avoid Hardcoding "demo_token"**
+- Using `"demo_token"` as a fallback is not safe or realistic.
+
+#### c. **Use of `print()` for logging**
+- Prefer using the `logging` module for better control over verbosity and output formatting.
+
+#### d. **Avoid `sys.exit(1)` in library code**
+- Use `sys.exit()` only when necessary. Prefer raising exceptions or returning error codes.
+
+---
+
+## ✅ 3. **Performance Optimizations**
+
+### a. **No Caching or Rate Limiting**
+- The script fetches workflow runs every time it runs. If this were a long-running service, it should:
+  - Cache recent results.
+  - Use `time.sleep()` or async checks to avoid rate limits.
+
+### b. **No Throttling or Retries**
+- If GitHub API is slow or fails, the script should retry or back off.
+
+---
+
+## ✅ 4. **Security Considerations**
+
+### a. **Token Exposure**
+- The script accepts `--vercel-token` via CLI, which is **insecure**.
+  - CLI arguments are visible in process lists (`ps aux`).
+  - Use environment variables or secure vaults.
+
+### b. **No Input Sanitization**
+- The `--repo` argument is parsed with a simple `split('/')`, but:
+  - No validation that `owner` and `repo` are valid GitHub identifiers.
+  - No check for malicious input.
+
+### c. **No HTTPS Enforcement**
+- If this script were to make real API calls, it should enforce HTTPS and validate SSL certificates.
+
+---
+
+## ✅ 5. **Readability and Maintainability**
+
+### a. **Naming Conventions**
+- `get_github_workflow_status` is descriptive, but could be renamed to `get_latest_workflow_status` for clarity.
+
+### b. **Function Length**
+- `main()` is doing too much:
+  - Parsing args
+  - Logic for deployment
+  - Error handling
+- Split into smaller functions for clarity.
+
+### c. **Error Messages**
+- Error messages are printed to `stdout`. Prefer logging or structured error reporting.
+
+### d. **Magic Strings**
+- `"demo_token"` and `"main"` are hardcoded. Use constants or config.
+
+---
+
+## ✅ Summary of Recommendations
+
+| Area | Recommendation |
+|------|-----------------|
+| **Correctness** | Replace `deploy_to_vercel` mock with real Vercel API integration. |
+| **Security** | Avoid passing tokens via CLI. Use environment variables. |
+| **Style** | Use `logging` instead of `print()`. |
+| **Maintainability** | Break `main()` into smaller functions. |
+| **Performance** | Add caching or async checks if this becomes a long-running service. |
+|
